@@ -2,7 +2,11 @@ import streamlit as st
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
+import time
+import random
 from fake_useragent import UserAgent
+from sklearn.linear_model import LinearRegression
+import numpy as np
 
 # Function to fetch the HTML content of a webpage
 def fetch_page(url):
@@ -54,56 +58,52 @@ def fetch_product_details(url):
             details['highest_price'] = max(price_history)
             details['lowest_price'] = min(price_history)
         
-            if price_history:
-                current_price = float(price_history[-1])
-                avg_price = sum(price_history) / len(price_history)
-                details['recommendation_metric'] = 'Good' if current_price < avg_price else 'Bad'
+        if price_history:
+            current_price = float(price_history[-1])
+            avg_price = sum(price_history) / len(price_history)
+            details['recommendation_metric'] = 'Good' if current_price < avg_price else 'Bad'
 
     return details
 
 # Streamlit app
 def main():
     st.title("Amazon Product Analyzer")
-    command = st.text_input("Enter a command ('search' to search for a product):")
+    search_term = st.text_input("Enter the product search term:")
     
-    if command.lower() == "search":
-        search_term = st.text_input("Enter the product search term:")
-        if st.button("Search"):
-            if search_term:
-                search_term_formatted = search_term.replace(' ', '+')
-                url = f'https://www.amazon.com/s?k={search_term_formatted}'
+    if st.button("Search"):
+        if search_term:
+            search_term_formatted = search_term.replace(' ', '+')
+            url = f'https://www.amazon.com/s?k={search_term_formatted}'
+            
+            html_content = fetch_page(url)
+            
+            if html_content:
+                products = parse_page(html_content)
                 
-                html_content = fetch_page(url)
+                st.subheader(f"Found {len(products)} products for '{search_term}'")
                 
-                if html_content:
-                    products = parse_page(html_content)
-                    st.write(f"Found {len(products)} products for '{search_term}'")
-                    
-                    detailed_products = []
-                    for product in products:
-                        details = fetch_product_details(product['link'])
-                        product.update(details)
-                        detailed_products.append(product)
-                    
-                    df = pd.DataFrame(detailed_products)
-                    st.write(df)
-                    st.download_button(
-                        label="Download data as CSV",
-                        data=df.to_csv(index=False).encode('utf-8'),
-                        file_name='amazon_products.csv',
-                        mime='text/csv'
-                    )
-                    
-                    # Display recommendations based on the recommendation metric
-                    recommendations = df[df['recommendation_metric'] == 'Good']
-                    st.write("Recommended Products:")
-                    st.write(recommendations)
-                else:
-                    st.write("Failed to fetch the web page. Please try again later.")
+                df = pd.DataFrame(products)
+                st.dataframe(df)
+
+                st.markdown("---")
+                
+                st.subheader("Download Data")
+                csv = df.to_csv(index=False).encode('utf-8')
+                st.download_button(
+                    label="Download CSV",
+                    data=csv,
+                    file_name='amazon_products.csv',
+                    mime='text/csv'
+                )
+                
+                # Display recommendations based on the recommendation metric
+                recommendations = df[df['recommendation_metric'] == 'Good']
+                st.write("Recommended Products:")
+                st.write(recommendations)
             else:
-                st.write("Please enter a search term.")
-    else:
-        st.write("Invalid command. Please enter 'search' to search for a product.")
+                st.write("Failed to fetch the web page. Please try again later.")
+        else:
+            st.write("Please enter a search term.")
 
 if __name__ == '__main__':
     main()
