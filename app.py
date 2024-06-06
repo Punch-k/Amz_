@@ -5,8 +5,8 @@ import pandas as pd
 import time
 import random
 from fake_useragent import UserAgent
-from sklearn.linear_model import LinearRegression
-import numpy as np
+from PIL import Image
+from io import BytesIO
 
 # Function to fetch the HTML content of a webpage
 def fetch_page(url):
@@ -35,10 +35,13 @@ def parse_page(html_content):
         price_tag = product.find('span', 'a-price-whole')
         price = price_tag.text.strip() if price_tag else 'N/A'
 
+        image_tag = product.find('img', {'class': 's-image'})
+        image_url = image_tag.get('src') if image_tag else None
+
         link_tag = product.h2.a if title_tag else None
         link = 'https://www.amazon.com' + link_tag['href'] if link_tag else 'N/A'
 
-        products.append({'title': title, 'current_price': price, 'link': link})
+        products.append({'title': title, 'current_price': price, 'image_url': image_url, 'link': link})
     return products
 
 # Function to fetch product details from the product page
@@ -58,10 +61,10 @@ def fetch_product_details(url):
             details['highest_price'] = max(price_history)
             details['lowest_price'] = min(price_history)
         
-        if price_history:
-            current_price = float(price_history[-1])
-            avg_price = sum(price_history) / len(price_history)
-            details['recommendation_metric'] = 'Good' if current_price < avg_price else 'Bad'
+            if price_history:
+                current_price = float(price_history[-1])
+                avg_price = sum(price_history) / len(price_history)
+                details['recommendation_metric'] = 'Good' if current_price < avg_price else 'Bad'
 
     return details
 
@@ -82,12 +85,19 @@ def main():
                 
                 st.subheader(f"Found {len(products)} products for '{search_term}'")
                 
-                df = pd.DataFrame(products)
-                st.dataframe(df)
+                for product in products:
+                    st.write(f"### {product['title']}")
+                    st.write(f"**Price:** {product['current_price']}")
+                    if product['image_url']:
+                        image = Image.open(BytesIO(requests.get(product['image_url']).content))
+                        st.image(image, caption=product['title'], use_column_width=True)
+                    st.write(f"[Buy Now]({product['link']})")
+                    st.markdown("---")
 
                 st.markdown("---")
                 
                 st.subheader("Download Data")
+                df = pd.DataFrame(products)
                 csv = df.to_csv(index=False).encode('utf-8')
                 st.download_button(
                     label="Download CSV",
@@ -95,11 +105,6 @@ def main():
                     file_name='amazon_products.csv',
                     mime='text/csv'
                 )
-                
-                # Display recommendations based on the recommendation metric
-                recommendations = df[df['recommendation_metric'] == 'Good']
-                st.write("Recommended Products:")
-                st.write(recommendations)
             else:
                 st.write("Failed to fetch the web page. Please try again later.")
         else:
