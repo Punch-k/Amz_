@@ -102,9 +102,12 @@ def main():
                 )
                 
                 # Display recommendations based on the recommendation metric
-                recommendations = df[df['recommendation_metric'] == 'Good']
-                st.write("Recommended Products:")
-                st.write(recommendations)
+                if 'recommendation_metric' in df:
+                    recommendations = df[df['recommendation_metric'] == 'Good']
+                    st.write("Recommended Products:")
+                    st.write(recommendations)
+                else:
+                    st.write("No recommendation data available.")
             else:
                 st.write("Failed to fetch the web page. Please try again later.")
         else:
