@@ -46,7 +46,6 @@ def fetch_product_details(url):
     details = {}
     html_content = fetch_page(url)
     if html_content:
-        print("HTML content retrieved successfully")
         soup = BeautifulSoup(html_content, 'html.parser')
         price_history = []  # This should be parsed from the page if available
         for script in soup.find_all('script'):
@@ -56,19 +55,15 @@ def fetch_product_details(url):
                 break
         
         if price_history:
-            print("Price history found:", price_history)
             details['highest_price'] = max(price_history)
             details['lowest_price'] = min(price_history)
         
-            if price_history:
-                current_price = float(price_history[-1])
-                avg_price = sum(price_history) / len(price_history)
-                details['recommendation_metric'] = 'Good' if current_price < avg_price else 'Bad'
-        else:
-            print("Price history not found")
+        if price_history:
+            current_price = float(price_history[-1])
+            avg_price = sum(price_history) / len(price_history)
+            details['recommendation_metric'] = 'Good' if current_price < avg_price else 'Bad'
 
     return details
-
 
 # Streamlit app
 def main():
@@ -101,7 +96,7 @@ def main():
                     mime='text/csv'
                 )
                 
-                # Display recommendations based on the recommendation metric
+                # Display recommendations based on the recommendation metric if available
                 if 'recommendation_metric' in df:
                     recommendations = df[df['recommendation_metric'] == 'Good']
                     st.write("Recommended Products:")
